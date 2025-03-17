@@ -1,0 +1,1 @@
+App Store Connect short description
