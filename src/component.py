@@ -42,7 +42,7 @@ class Component(ComponentBase):
     def run(self):
         self.state = self.get_state_file()
 
-        for app in self.params.source.app_id:
+        for app in self.params.source.app_ids:
             logging.info(f"Download reports for app_id: {app}")
             self.download_reports_for_app(app)
 
@@ -51,7 +51,7 @@ class Component(ComponentBase):
         for subdirectory in subdirectories:
             path = os.path.join(FILES_TEMP_DIR, subdirectory)
             self.ungzip_files_in_folder(path)
-            self.create_table_from_report(path)
+            self.create_table_from_report(subdirectory)
 
         self.write_state_file(self.state)
 
@@ -61,14 +61,14 @@ class Component(ComponentBase):
             r.get("id")
             for r in report_requests
             if r.get("attributes").get("accessType") == self.params.source.access_type
-            and r.get("attributes").get("stoppedDueToInactivity") == False
+            and r.get("attributes").get("stoppedDueToInactivity") is False
         ]
         if not relevant_requests:
             logging.info(
                 f"No reports to download for app_id: {app_id}, creating report request."
                 f"Data should be available in the next 48 hours."
             )
-            self.client.create_report_request(self.params.source.app_id, self.params.source.access_type)
+            self.client.create_report_request(app_id, self.params.source.access_type)
             return
 
         for request in relevant_requests:
@@ -125,7 +125,7 @@ class Component(ComponentBase):
                     shutil.copyfileobj(gz_file, out_file)
 
     def create_table_from_report(self, folder_path):
-        path = os.path.join(folder_path, "ungzipped")
+        path = os.path.join(FILES_TEMP_DIR, folder_path, "ungzipped")
 
         self.duck.execute(f"CREATE VIEW {folder_path} AS SELECT * FROM read_csv('{path}/*.csv')")
 
@@ -186,13 +186,13 @@ class Component(ComponentBase):
 
     @sync_action("list_reports")
     def list_reports(self):
-        report_requests = list(self.client.get_reports_requests(self.params.source.app_id[0]))
+        report_requests = list(self.client.get_reports_requests(self.params.source.app_ids[0]))
 
         relevant_requests = [
             r.get("id")
             for r in report_requests
             if r.get("attributes").get("accessType") == self.params.source.access_type
-            and r.get("attributes").get("stoppedDueToInactivity") == False
+            and r.get("attributes").get("stoppedDueToInactivity") is False
         ]
 
         all_reports = []

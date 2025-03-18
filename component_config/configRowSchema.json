@@ -11,16 +11,16 @@
       "type": "object",
       "title": "Data Source",
       "required": [
-        "apps"
+        "app_ids"
       ],
       "properties": {
-        "apps": {
+        "app_ids": {
           "type": "array",
           "items": {
             "enum": [],
             "type": "string"
           },
-          "title": "Columns to extract",
+          "title": "Apps for generating reports",
           "format": "select",
           "options": {
             "tags": true,
@@ -32,7 +32,22 @@
           "uniqueItems": true,
           "propertyOrder": 1
         },
-        "report_category": {
+        "access_type": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "ONGOING",
+              "ONE_TIME_SNAPSHOT"
+            ],
+            "type": "string"
+          },
+          "title": "Access type",
+          "format": "select",
+          "default": "ONGOING",
+          "uniqueItems": true,
+          "propertyOrder": 2
+        },
+        "report_categories": {
           "type": "array",
           "items": {
             "enum": [
@@ -49,19 +64,19 @@
           "uniqueItems": true,
           "propertyOrder": 2
         },
-        "report_name": {
+        "report_names": {
           "type": "array",
           "items": {
             "enum": [],
             "type": "string"
           },
-          "title": "Columns to extract",
+          "title": "Reports to extract",
           "format": "select",
           "options": {
             "tags": true,
             "async": {
-              "label": "Re-load columns",
-              "action": "list_columns"
+              "label": "Re-load reports",
+              "action": "list_reports"
             }
           },
           "uniqueItems": true,
