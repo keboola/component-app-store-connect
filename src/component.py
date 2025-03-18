@@ -31,12 +31,12 @@ class Component(ComponentBase):
     def __init__(self):
         super().__init__()
         self.params = Configuration(**self.configuration.parameters)
+        os.makedirs(os.path.dirname(FILES_TEMP_DIR), exist_ok=True)
+        os.makedirs(FILES_TEMP_DIR, exist_ok=True)
         self.duck = self.init_duckdb()
-
         self.client = AppStoreConnectClient(
             key_id=self.params.key_id, issuer_id=self.params.issuer_id, key_string=self.params.key_string
         )
-
         self.state = None
 
     def run(self):

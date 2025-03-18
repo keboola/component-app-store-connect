@@ -33,18 +33,14 @@
           "propertyOrder": 1
         },
         "access_type": {
-          "type": "array",
-          "items": {
-            "enum": [
-              "ONGOING",
-              "ONE_TIME_SNAPSHOT"
-            ],
-            "type": "string"
-          },
-          "title": "Access type",
-          "format": "select",
+          "enum": [
+            "ONGOING",
+            "ONE_TIME_SNAPSHOT"
+          ],
+          "type": "string",
+          "title": "Granularity",
           "default": "ONGOING",
-          "uniqueItems": true,
+          "required": true,
           "propertyOrder": 2
         },
         "report_categories": {
