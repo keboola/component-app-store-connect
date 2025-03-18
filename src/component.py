@@ -61,7 +61,7 @@ class Component(ComponentBase):
             r.get("id")
             for r in report_requests
             if r.get("attributes").get("accessType") == self.params.source.access_type
-            and r.get("attributes").get("stoppedDueToInactivity") == False
+            and r.get("attributes").get("stoppedDueToInactivity") is False
         ]
         if not relevant_requests:
             logging.info(
@@ -192,7 +192,7 @@ class Component(ComponentBase):
             r.get("id")
             for r in report_requests
             if r.get("attributes").get("accessType") == self.params.source.access_type
-            and r.get("attributes").get("stoppedDueToInactivity") == False
+            and r.get("attributes").get("stoppedDueToInactivity") is False
         ]
 
         all_reports = []
