@@ -1,19 +1,34 @@
 {
   "type": "object",
-  "title": "extractor configuration",
+  "title": "Authorization",
   "required": [
-    "print_hello"
+    "vendor_id",
+    "issuer_id",
+    "key_id",
+    "#key_string"
   ],
   "properties": {
-    "print_hello": {
-      "type": "boolean",
-      "title": "Print Hello",
+    "vendor_id": {
+      "type": "string",
+      "title": "Vendor ID",
       "propertyOrder": 1
     },
-    "debug": {
-      "type": "boolean",
-      "title": "Debug",
+    "issuer_id": {
+      "type": "string",
+      "title": "Issuer ID",
       "propertyOrder": 2
+    },
+    "key_id": {
+      "type": "string",
+      "title": "Key ID",
+      "propertyOrder": 3
+    },
+    "#key_string": {
+      "type": "string",
+      "title": "Key String",
+      "format": "password",
+      "description": "Whole content of the key file",
+      "propertyOrder": 4
     }
   }
 }
