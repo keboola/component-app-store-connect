@@ -42,7 +42,7 @@ class Component(ComponentBase):
     def run(self):
         self.state = self.get_state_file()
 
-        for app in self.params.source.app_id:
+        for app in self.params.source.app_ids:
             logging.info(f"Download reports for app_id: {app}")
             self.download_reports_for_app(app)
 
@@ -68,7 +68,7 @@ class Component(ComponentBase):
                 f"No reports to download for app_id: {app_id}, creating report request."
                 f"Data should be available in the next 48 hours."
             )
-            self.client.create_report_request(self.params.source.app_id, self.params.source.access_type)
+            self.client.create_report_request(app_id, self.params.source.access_type)
             return
 
         for request in relevant_requests:
@@ -186,7 +186,7 @@ class Component(ComponentBase):
 
     @sync_action("list_reports")
     def list_reports(self):
-        report_requests = list(self.client.get_reports_requests(self.params.source.app_id[0]))
+        report_requests = list(self.client.get_reports_requests(self.params.source.app_ids[0]))
 
         relevant_requests = [
             r.get("id")

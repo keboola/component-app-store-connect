@@ -13,13 +13,13 @@ class LoadType(str, Enum):
 
 
 class Source(BaseModel):
-    app_id: List[str]
+    app_ids: List[str]
     access_type: Literal["ONGOING", "ONE_TIME_SNAPSHOT"] = Field(default="ONGOING")
     report_categories: List[str] = Field(default=["APP_USAGE"])
     report_names: List[str] = None
     granularity: Literal["DAILY", "WEEKLY", "MONTHLY"] = Field(default="DAILY")
 
-    @field_validator("app_id")
+    @field_validator("app_ids")
     def split_id_string(cls, v):
         ids = []
         for id in v:

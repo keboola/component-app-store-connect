@@ -7,3 +7,4 @@ pydantic
 PyJWT==2.10.1
 duckdb
 backoff
+cryptography

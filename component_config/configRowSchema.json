@@ -11,16 +11,16 @@
       "type": "object",
       "title": "Data Source",
       "required": [
-        "apps"
+        "app_ids"
       ],
       "properties": {
-        "apps": {
+        "app_ids": {
           "type": "array",
           "items": {
             "enum": [],
             "type": "string"
           },
-          "title": "Columns to extract",
+          "title": "Apps for generating reports",
           "format": "select",
           "options": {
             "tags": true,
@@ -55,13 +55,13 @@
             "enum": [],
             "type": "string"
           },
-          "title": "Columns to extract",
+          "title": "Reports to extract",
           "format": "select",
           "options": {
             "tags": true,
             "async": {
-              "label": "Re-load columns",
-              "action": "list_columns"
+              "label": "Re-load reports",
+              "action": "list_reports"
             }
           },
           "uniqueItems": true,
