@@ -4,3 +4,6 @@ keboola.http-client
 freezegun
 mock
 pydantic
+PyJWT==2.10.1
+duckdb
+backoff

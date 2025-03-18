@@ -2,86 +2,210 @@
 Template Component main class.
 
 """
-import csv
-from datetime import datetime
-import logging
 
-from keboola.component.base import ComponentBase
+import os
+import gzip
+import shutil
+import logging
+import duckdb
+from duckdb import DuckDBPyConnection
+from collections import OrderedDict
+
+
+from keboola.component.base import ComponentBase, sync_action
 from keboola.component.exceptions import UserException
+from keboola.component.sync_actions import SelectElement
+from keboola.component.dao import BaseType, ColumnDefinition, SupportedDataTypes
+
 
 from configuration import Configuration
+from client.app_store_connect import AppStoreConnectClient
+
+
+DUCK_DB_MAX_MEMORY = "128MB"
+DUCK_DB_DIR = os.path.join(os.environ.get("TMPDIR", "/tmp"), "duckdb")
+FILES_TEMP_DIR = os.path.join(os.environ.get("TMPDIR", "/tmp"), "files")
 
 
 class Component(ComponentBase):
-    """
-        Extends base class for general Python components. Initializes the CommonInterface
-        and performs configuration validation.
-
-        For easier debugging the data folder is picked up by default from `../data` path,
-        relative to working directory.
-
-        If `debug` parameter is present in the `config.json`, the default logger is set to verbose DEBUG mode.
-    """
-
     def __init__(self):
         super().__init__()
+        self.params = Configuration(**self.configuration.parameters)
+        self.duck = self.init_duckdb()
+
+        self.client = AppStoreConnectClient(
+            key_id=self.params.key_id, issuer_id=self.params.issuer_id, key_string=self.params.key_string
+        )
+
+        self.state = None
 
     def run(self):
+        self.state = self.get_state_file()
+
+        for app in self.params.source.app_id:
+            logging.info(f"Download reports for app_id: {app}")
+            self.download_reports_for_app(app)
+
+        subdirectories = [f for f in os.listdir(FILES_TEMP_DIR) if os.path.isdir(os.path.join(FILES_TEMP_DIR, f))]
+
+        for subdirectory in subdirectories:
+            path = os.path.join(FILES_TEMP_DIR, subdirectory)
+            self.ungzip_files_in_folder(path)
+            self.create_table_from_report(path)
+
+        self.write_state_file(self.state)
+
+    def download_reports_for_app(self, app_id):
+        report_requests = list(self.client.get_reports_requests(app_id))
+        relevant_requests = [
+            r.get("id")
+            for r in report_requests
+            if r.get("attributes").get("accessType") == self.params.source.access_type
+            and r.get("attributes").get("stoppedDueToInactivity") == False
+        ]
+        if not relevant_requests:
+            logging.info(
+                f"No reports to download for app_id: {app_id}, creating report request."
+                f"Data should be available in the next 48 hours."
+            )
+            self.client.create_report_request(self.params.source.app_id, self.params.source.access_type)
+            return
+
+        for request in relevant_requests:
+            reports = list(self.client.get_reports(request))
+
+            for report in reports:
+                if report.get("attributes").get("name") in self.params.source.report_names:
+                    report_name = report.get("attributes").get("name").replace(" ", "_")
+                    instances = list(self.client.get_report_instances(report.get("id"), self.params.source.granularity))
+                    for instance in instances:
+
+                        last = self.state.get("last_processed", {}).get(app_id, {}).get(report_name, "2000-01-01")
+                        current = instance.get("attributes", {}).get("processingDate")
+
+                        if current > last:
+                            segments = list(self.client.get_instance_segments(instance.get("id")))
+                            for segment in segments:
+                                if not os.path.exists(os.path.join(FILES_TEMP_DIR, report_name)):
+                                    os.makedirs(os.path.join(FILES_TEMP_DIR, report_name))
+
+                                path = os.path.join(FILES_TEMP_DIR, report_name, f"{segment.get('id')}.csv.gz")
+
+                                self.client.get_segment_data(segment.get("attributes").get("url"), path)
+
+                                self.state.setdefault("last_processed", {}).setdefault(app_id, {})[report_name] = (
+                                    instance.get("attributes", {}).get("processingDate")
+                                )
+
+    @staticmethod
+    def init_duckdb() -> DuckDBPyConnection:
         """
-        Main execution code
+        Returns connection to temporary DuckDB database
         """
+        os.makedirs(DUCK_DB_DIR, exist_ok=True)
+        # TODO: On GCP consider changin tmp to /opt/tmp
+        config = dict(temp_directory=DUCK_DB_DIR, threads="1", max_memory=DUCK_DB_MAX_MEMORY)
+        conn = duckdb.connect(config=config)
 
-        # ####### EXAMPLE TO REMOVE
-        # check for missing configuration parameters
-        params = Configuration(**self.configuration.parameters)
+        return conn
 
-        # Access parameters in configuration
-        if params.print_hello:
-            logging.info("Hello World")
+    @staticmethod
+    def ungzip_files_in_folder(folder_path):
+        output_folder = os.path.join(folder_path, "ungzipped")
+        os.makedirs(output_folder, exist_ok=True)
 
-        # get input table definitions
-        input_tables = self.get_input_tables_definitions()
-        for table in input_tables:
-            logging.info(f'Received input table: {table.name} with path: {table.full_path}')
+        for file_name in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, file_name)
 
-        if len(input_tables) == 0:
-            raise UserException("No input tables found")
+            if file_name.endswith(".gz") and os.path.isfile(file_path):
+                output_file_name = file_name[:-3]  # Remove .gz extension
+                output_file_path = os.path.join(output_folder, output_file_name)
 
-        # get last state data/in/state.json from previous run
-        previous_state = self.get_state_file()
-        logging.info(previous_state.get('some_parameter'))
+                with gzip.open(file_path, "rb") as gz_file, open(output_file_path, "wb") as out_file:
+                    shutil.copyfileobj(gz_file, out_file)
 
-        # Create output table (Table definition - just metadata)
-        table = self.create_out_table_definition('output.csv', incremental=True, primary_key=['timestamp'])
+    def create_table_from_report(self, folder_path):
+        path = os.path.join(folder_path, "ungzipped")
 
-        # get file path of the table (data/out/tables/Features.csv)
-        out_table_path = table.full_path
-        logging.info(out_table_path)
+        self.duck.execute(f"CREATE VIEW {folder_path} AS SELECT * FROM read_csv('{path}/*.csv')")
 
-        # Add timestamp column and save into out_table_path
-        input_table = input_tables[0]
-        with (open(input_table.full_path, 'r') as inp_file,
-              open(table.full_path, mode='wt', encoding='utf-8', newline='') as out_file):
-            reader = csv.DictReader(inp_file)
+        table_meta = self.duck.execute(f"""DESCRIBE {folder_path};""").fetchall()
+        schema = OrderedDict(
+            {c[0]: ColumnDefinition(data_types=BaseType(dtype=self.convert_base_types(c[1]))) for c in table_meta}
+        )
 
-            columns = list(reader.fieldnames)
-            # append timestamp
-            columns.append('timestamp')
+        primary_key = None
 
-            # write result with column added
-            writer = csv.DictWriter(out_file, fieldnames=columns)
-            writer.writeheader()
-            for in_row in reader:
-                in_row['timestamp'] = datetime.now().isoformat()
-                writer.writerow(in_row)
+        out_table = self.create_out_table_definition(
+            f"{folder_path}.csv",
+            schema=schema,
+            primary_key=primary_key,
+            incremental=self.params.destination.incremental,
+            has_header=True,
+        )
 
-        # Save table manifest (output.csv.manifest) from the Table definition
-        self.write_manifest(table)
+        try:
+            self.duck.execute(f"COPY {folder_path} TO '{out_table.full_path}' (HEADER, DELIMITER ',', FORCE_QUOTE *)")
+        except duckdb.ConversionException as e:
+            raise UserException(f"Error during query execution: {e}")
 
-        # Write new state - will be available next run
-        self.write_state_file({"some_state_parameter": "value"})
+        self.write_manifest(out_table)
 
-        # ####### EXAMPLE TO REMOVE END
+    @staticmethod
+    def convert_base_types(dtype: str) -> SupportedDataTypes:
+        if dtype in [
+            "TINYINT",
+            "SMALLINT",
+            "INTEGER",
+            "BIGINT",
+            "HUGEINT",
+            "UTINYINT",
+            "USMALLINT",
+            "UINTEGER",
+            "UBIGINT",
+            "UHUGEINT",
+        ]:
+            return SupportedDataTypes.INTEGER
+        elif dtype in ["REAL", "DECIMAL"]:
+            return SupportedDataTypes.NUMERIC
+        elif dtype == "DOUBLE":
+            return SupportedDataTypes.FLOAT
+        elif dtype == "BOOLEAN":
+            return SupportedDataTypes.BOOLEAN
+        elif dtype in ["TIMESTAMP", "TIMESTAMP WITH TIME ZONE"]:
+            return SupportedDataTypes.TIMESTAMP
+        elif dtype == "DATE":
+            return SupportedDataTypes.DATE
+        else:
+            return SupportedDataTypes.STRING
+
+    @sync_action("list_apps")
+    def list_apps(self):
+        apps = self.client.get_apps()
+        return [SelectElement(value=f"{val['id']}-{val['attributes']['name']}") for val in apps]
+
+    @sync_action("list_reports")
+    def list_reports(self):
+        report_requests = list(self.client.get_reports_requests(self.params.source.app_id[0]))
+
+        relevant_requests = [
+            r.get("id")
+            for r in report_requests
+            if r.get("attributes").get("accessType") == self.params.source.access_type
+            and r.get("attributes").get("stoppedDueToInactivity") == False
+        ]
+
+        all_reports = []
+        for request in relevant_requests:
+            all_reports.extend(self.client.get_reports(request))
+
+        report_names = [
+            SelectElement(value=val.get("attributes").get("name"))
+            for val in all_reports
+            if val.get("attributes").get("category") in self.params.source.report_categories
+        ]
+
+        return report_names
 
 
 """
