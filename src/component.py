@@ -10,6 +10,7 @@ import logging
 import duckdb
 from duckdb import DuckDBPyConnection
 from collections import OrderedDict
+import requests
 
 
 from keboola.component.base import ComponentBase, sync_action
@@ -84,7 +85,14 @@ class Component(ComponentBase):
                         current = instance.get("attributes", {}).get("processingDate")
 
                         if current > last:
-                            segments = list(self.client.get_instance_segments(instance.get("id")))
+                            segments = []
+                            try:
+                                segments = list(self.client.get_instance_segments(instance.get("id")))
+                            except requests.exceptions.HTTPError:
+                                logging.warning(f"Error downloading segment data from the {report_name} report "
+                                                f"from the {instance.get('attributes', {}).get('processingDate')}: the "
+                                                f"data has either expired or is not yet ready.")
+
                             for segment in segments:
                                 if not os.path.exists(os.path.join(FILES_TEMP_DIR, report_name)):
                                     os.makedirs(os.path.join(FILES_TEMP_DIR, report_name))
