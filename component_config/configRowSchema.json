@@ -89,6 +89,13 @@
           "default": "DAILY",
           "required": true,
           "propertyOrder": 4
+        },
+        "date_from": {
+          "type": "string",
+          "title": "Fetch From Date",
+          "default": "2000-01-01",
+          "description": "From which date will the reports be downloaded during the first run? Subsequent runs will download only the data since the last component run",
+          "propertyOrder": 5
         }
       },
       "propertyOrder": 1
@@ -114,7 +121,7 @@
               "Full Load"
             ]
           },
-          "description": "If Full load is used, the destination table will be overwritten every run. If Incremental Load is used, data will be upserted into the destination table based on the primary key. Append modes do not contain any primary keys and are not deduplicated.",
+          "description": "If Full Load is used, the destination table will be overwritten every run. If Incremental Load is used, data will be inserted into the destination table and deduplicated.",
           "propertyOrder": 1
         }
       },
