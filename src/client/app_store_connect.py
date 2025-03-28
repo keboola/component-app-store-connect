@@ -1,12 +1,11 @@
-import jwt
 import time
-from typing import Optional, Literal
+from typing import Literal, Optional
 
-from keboola.http_client import HttpClient
-from keboola.component.exceptions import UserException
-import requests
 import backoff
-
+import jwt
+import requests
+from keboola.component.exceptions import UserException
+from keboola.http_client import HttpClient
 
 BASE_URL = "https://api.appstoreconnect.apple.com/v1"
 

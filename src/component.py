@@ -3,24 +3,21 @@ Template Component main class.
 
 """
 
-import os
 import gzip
-import shutil
 import logging
+import os
+import shutil
+
 import duckdb
-from duckdb import DuckDBPyConnection
 import requests
-
-
+from duckdb import DuckDBPyConnection
 from keboola.component.base import ComponentBase, sync_action
+from keboola.component.dao import BaseType, ColumnDefinition, SupportedDataTypes
 from keboola.component.exceptions import UserException
 from keboola.component.sync_actions import SelectElement
-from keboola.component.dao import BaseType, ColumnDefinition, SupportedDataTypes
 
-
-from configuration import Configuration
 from client.app_store_connect import AppStoreConnectClient
-
+from configuration import Configuration
 
 DUCK_DB_MAX_MEMORY = "128MB"
 DUCK_DB_DIR = os.path.join(os.environ.get("TMPDIR", "/tmp"), "duckdb")
@@ -74,7 +71,6 @@ class Component(ComponentBase):
                     report_name = report.get("attributes").get("name").replace(" ", "_")
                     instances = list(self.client.get_report_instances(report.get("id"), self.params.source.granularity))
                     for instance in instances:
-
                         last = self.state.get("last_processed", {}).get(app_id, {}).get(report_name, "2000-01-01")
                         current = instance.get("attributes", {}).get("processingDate")
 
@@ -83,9 +79,11 @@ class Component(ComponentBase):
                             try:
                                 segments = list(self.client.get_instance_segments(instance.get("id")))
                             except requests.exceptions.HTTPError:
-                                logging.warning(f"Error downloading segment data from the {report_name} report "
-                                                f"from the {instance.get('attributes', {}).get('processingDate')}: the "
-                                                f"data has either expired or is not yet ready.")
+                                logging.warning(
+                                    f"Error downloading segment data from the {report_name} report "
+                                    f"from the {instance.get('attributes', {}).get('processingDate')}: the "
+                                    f"data has either expired or is not yet ready."
+                                )
 
                             for segment in segments:
                                 if not os.path.exists(os.path.join(FILES_TEMP_DIR, report_name)):
@@ -107,7 +105,7 @@ class Component(ComponentBase):
             r.get("id")
             for r in report_requests
             if r.get("attributes").get("accessType") == self.params.source.access_type
-               and r.get("attributes").get("stoppedDueToInactivity") is False
+            and r.get("attributes").get("stoppedDueToInactivity") is False
         ]
         return relevant_requests
 
@@ -145,7 +143,7 @@ class Component(ComponentBase):
         out_table = self.create_out_table_definition(
             f"{folder_path}.csv",
             schema=schema,
-            primary_key=list(schema.keys()), # all columns to deduplicate date in case of incremental load
+            primary_key=list(schema.keys()),  # all columns to deduplicate date in case of incremental load
             incremental=self.params.destination.incremental,
             has_header=True,
         )
