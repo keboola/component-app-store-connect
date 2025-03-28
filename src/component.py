@@ -67,8 +67,8 @@ class Component(ComponentBase):
             reports = self.client.get_reports(request)
 
             for report in reports:
-                if report.get("attributes").get("name") in self.params.source.report_names:
-                    report_name = report.get("attributes").get("name").replace(" ", "_")
+                if (report_name := report.get("attributes", {}).get("name")) in self.params.source.report_names:
+                    report_name = report_name.replace(" ", "_")
                     instances = self.client.get_report_instances(report.get("id"), self.params.source.granularity)
                     for instance in instances:
                         last = (

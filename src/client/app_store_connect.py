@@ -72,7 +72,7 @@ class AppStoreConnectClient(HttpClient):
             params["filter[category]"] = filter_category
         yield from self._paginate(f"analyticsReportRequests/{request_id}/reports", params)
 
-    def get_report_instances(self, report_id: str, granularity: Literal["DAILY", "WEEKLY", "MONTHLY"] = None):
+    def get_report_instances(self, report_id: str, granularity: Literal["DAILY", "WEEKLY", "MONTHLY"] = "DAILY"):
         params = {}
         if granularity:
             params["filter[granularity]"] = granularity
