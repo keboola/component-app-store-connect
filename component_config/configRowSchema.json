@@ -114,7 +114,7 @@
               "Full Load"
             ]
           },
-          "description": "If Full load is used, the destination table will be overwritten every run. If Incremental Load is used, data will be upserted into the destination table based on the primary key. Append modes do not contain any primary keys and are not deduplicated.",
+          "description": "If Full Load is used, the destination table will be overwritten every run. If Incremental Load is used, data will be inserted into the destination table and deduplicated.",
           "propertyOrder": 1
         }
       },

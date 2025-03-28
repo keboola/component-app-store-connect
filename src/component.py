@@ -9,7 +9,6 @@ import shutil
 import logging
 import duckdb
 from duckdb import DuckDBPyConnection
-from collections import OrderedDict
 import requests
 
 
@@ -56,14 +55,9 @@ class Component(ComponentBase):
 
         self.write_state_file(self.state)
 
-    def download_reports_for_app(self, app_id):
+    def download_reports_for_app(self, app_id: str) -> None:
         report_requests = list(self.client.get_reports_requests(app_id))
-        relevant_requests = [
-            r.get("id")
-            for r in report_requests
-            if r.get("attributes").get("accessType") == self.params.source.access_type
-            and r.get("attributes").get("stoppedDueToInactivity") is False
-        ]
+        relevant_requests = self.get_relevant_report_requests(report_requests)
         if not relevant_requests:
             logging.info(
                 f"No reports to download for app_id: {app_id}, creating report request."
@@ -105,20 +99,28 @@ class Component(ComponentBase):
                                     instance.get("attributes", {}).get("processingDate")
                                 )
 
+    def get_relevant_report_requests(self, report_requests):
+        """
+        Keep only the report requests with the selected access type that are not stopped due to inactivity.
+        """
+        relevant_requests = [
+            r.get("id")
+            for r in report_requests
+            if r.get("attributes").get("accessType") == self.params.source.access_type
+               and r.get("attributes").get("stoppedDueToInactivity") is False
+        ]
+        return relevant_requests
+
     @staticmethod
     def init_duckdb() -> DuckDBPyConnection:
-        """
-        Returns connection to temporary DuckDB database
-        """
         os.makedirs(DUCK_DB_DIR, exist_ok=True)
-        # TODO: On GCP consider changin tmp to /opt/tmp
         config = dict(temp_directory=DUCK_DB_DIR, threads="1", max_memory=DUCK_DB_MAX_MEMORY)
         conn = duckdb.connect(config=config)
 
         return conn
 
     @staticmethod
-    def ungzip_files_in_folder(folder_path):
+    def ungzip_files_in_folder(folder_path: str) -> None:
         output_folder = os.path.join(folder_path, "ungzipped")
         os.makedirs(output_folder, exist_ok=True)
 
@@ -132,22 +134,18 @@ class Component(ComponentBase):
                 with gzip.open(file_path, "rb") as gz_file, open(output_file_path, "wb") as out_file:
                     shutil.copyfileobj(gz_file, out_file)
 
-    def create_table_from_report(self, folder_path):
+    def create_table_from_report(self, folder_path: str) -> None:
         path = os.path.join(FILES_TEMP_DIR, folder_path, "ungzipped")
 
         self.duck.execute(f"CREATE VIEW {folder_path} AS SELECT * FROM read_csv('{path}/*.csv')")
 
         table_meta = self.duck.execute(f"""DESCRIBE {folder_path};""").fetchall()
-        schema = OrderedDict(
-            {c[0]: ColumnDefinition(data_types=BaseType(dtype=self.convert_base_types(c[1]))) for c in table_meta}
-        )
-
-        primary_key = None
+        schema = {c[0]: ColumnDefinition(data_types=BaseType(dtype=self.convert_base_types(c[1]))) for c in table_meta}
 
         out_table = self.create_out_table_definition(
             f"{folder_path}.csv",
             schema=schema,
-            primary_key=primary_key,
+            primary_key=list(schema.keys()), # all columns to deduplicate date in case of incremental load
             incremental=self.params.destination.incremental,
             has_header=True,
         )
@@ -188,20 +186,15 @@ class Component(ComponentBase):
             return SupportedDataTypes.STRING
 
     @sync_action("list_apps")
-    def list_apps(self):
+    def list_apps(self) -> list[SelectElement]:
         apps = self.client.get_apps()
         return [SelectElement(value=f"{val['id']}-{val['attributes']['name']}") for val in apps]
 
     @sync_action("list_reports")
-    def list_reports(self):
+    def list_reports(self) -> list[SelectElement]:
         report_requests = list(self.client.get_reports_requests(self.params.source.app_ids[0]))
 
-        relevant_requests = [
-            r.get("id")
-            for r in report_requests
-            if r.get("attributes").get("accessType") == self.params.source.access_type
-            and r.get("attributes").get("stoppedDueToInactivity") is False
-        ]
+        relevant_requests = self.get_relevant_report_requests(report_requests)
 
         all_reports = []
         for request in relevant_requests:

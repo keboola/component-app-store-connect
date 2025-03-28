@@ -16,7 +16,7 @@ class Source(BaseModel):
     app_ids: List[str]
     access_type: Literal["ONGOING", "ONE_TIME_SNAPSHOT"] = Field(default="ONGOING")
     report_categories: List[str] = Field(default=["APP_USAGE"])
-    report_names: List[str] = None
+    report_names: List[str] = Field(default_factory=list)
     granularity: Literal["DAILY", "WEEKLY", "MONTHLY"] = Field(default="DAILY")
 
     @field_validator("app_ids")
