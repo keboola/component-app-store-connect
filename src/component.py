@@ -53,7 +53,7 @@ class Component(ComponentBase):
         self.write_state_file(self.state)
 
     def download_reports_for_app(self, app_id: str) -> None:
-        report_requests = list(self.client.get_reports_requests(app_id))
+        report_requests = self.client.get_reports_requests(app_id)
         relevant_requests = self.get_relevant_report_requests(report_requests)
         if not relevant_requests:
             logging.info(
@@ -64,20 +64,24 @@ class Component(ComponentBase):
             return
 
         for request in relevant_requests:
-            reports = list(self.client.get_reports(request))
+            reports = self.client.get_reports(request)
 
             for report in reports:
                 if report.get("attributes").get("name") in self.params.source.report_names:
                     report_name = report.get("attributes").get("name").replace(" ", "_")
-                    instances = list(self.client.get_report_instances(report.get("id"), self.params.source.granularity))
+                    instances = self.client.get_report_instances(report.get("id"), self.params.source.granularity)
                     for instance in instances:
-                        last = self.state.get("last_processed", {}).get(app_id, {}).get(report_name, "2000-01-01")
+                        last = (
+                            self.state.get("last_processed", {})
+                            .get(app_id, {})
+                            .get(report_name, self.params.source.date_from)
+                        )
                         current = instance.get("attributes", {}).get("processingDate")
 
                         if current > last:
                             segments = []
                             try:
-                                segments = list(self.client.get_instance_segments(instance.get("id")))
+                                segments = self.client.get_instance_segments(instance.get("id"))
                             except requests.exceptions.HTTPError:
                                 logging.warning(
                                     f"Error downloading segment data from the {report_name} report "

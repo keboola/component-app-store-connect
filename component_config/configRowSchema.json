@@ -89,6 +89,13 @@
           "default": "DAILY",
           "required": true,
           "propertyOrder": 4
+        },
+        "date_from": {
+          "type": "string",
+          "title": "Fetch From Date",
+          "default": "2000-01-01",
+          "description": "From which date will the reports be downloaded during the first run? Subsequent runs will download only the data since the last component run",
+          "propertyOrder": 5
         }
       },
       "propertyOrder": 1

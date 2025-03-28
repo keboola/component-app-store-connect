@@ -17,6 +17,7 @@ class Source(BaseModel):
     report_categories: List[str] = Field(default=["APP_USAGE"])
     report_names: List[str] = Field(default_factory=list)
     granularity: Literal["DAILY", "WEEKLY", "MONTHLY"] = Field(default="DAILY")
+    date_from: str = Field(default="2000-01-01")
 
     @field_validator("app_ids")
     def split_id_string(cls, v):
