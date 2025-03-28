@@ -1,0 +1,132 @@
+{
+  "type": "object",
+  "title": "Component configuration",
+  "required": [
+    "source",
+    "destination",
+    "debug"
+  ],
+  "properties": {
+    "source": {
+      "type": "object",
+      "title": "Data Source",
+      "required": [
+        "app_ids"
+      ],
+      "properties": {
+        "app_ids": {
+          "type": "array",
+          "items": {
+            "enum": [],
+            "type": "string"
+          },
+          "title": "Apps for generating reports",
+          "format": "select",
+          "options": {
+            "tags": true,
+            "async": {
+              "label": "Re-load apps",
+              "action": "list_apps"
+            }
+          },
+          "uniqueItems": true,
+          "propertyOrder": 1
+        },
+        "access_type": {
+          "enum": [
+            "ONGOING",
+            "ONE_TIME_SNAPSHOT"
+          ],
+          "type": "string",
+          "title": "Granularity",
+          "default": "ONGOING",
+          "required": true,
+          "propertyOrder": 2
+        },
+        "report_categories": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "APP_USAGE",
+              "APP_STORE_ENGAGEMENT",
+              "COMMERCE",
+              "FRAMEWORK_USAGE",
+              "PERFORMANCE"
+            ],
+            "type": "string"
+          },
+          "title": "Report category",
+          "format": "select",
+          "uniqueItems": true,
+          "propertyOrder": 2
+        },
+        "report_names": {
+          "type": "array",
+          "items": {
+            "enum": [],
+            "type": "string"
+          },
+          "title": "Reports to extract",
+          "format": "select",
+          "options": {
+            "tags": true,
+            "async": {
+              "label": "Re-load reports",
+              "action": "list_reports"
+            }
+          },
+          "uniqueItems": true,
+          "propertyOrder": 3
+        },
+        "granularity": {
+          "enum": [
+            "DAILY",
+            "WEEKLY",
+            "MONTHLY"
+          ],
+          "type": "string",
+          "title": "Granularity",
+          "default": "DAILY",
+          "required": true,
+          "propertyOrder": 4
+        }
+      },
+      "propertyOrder": 1
+    },
+    "destination": {
+      "type": "object",
+      "title": "Destination",
+      "required": [
+        "load_type"
+      ],
+      "properties": {
+        "load_type": {
+          "enum": [
+            "incremental_load",
+            "full_load"
+          ],
+          "type": "string",
+          "title": "Load Type",
+          "default": "incremental_load",
+          "options": {
+            "enum_titles": [
+              "Incremental Load",
+              "Full Load"
+            ]
+          },
+          "description": "If Full load is used, the destination table will be overwritten every run. If Incremental Load is used, data will be upserted into the destination table based on the primary key. Append modes do not contain any primary keys and are not deduplicated.",
+          "propertyOrder": 1
+        }
+      },
+      "propertyOrder": 2
+    },
+    "debug": {
+      "type": "boolean",
+      "title": "Debug mode",
+      "format": "checkbox",
+      "default": false,
+      "description": "If enabled, the component will produce detailed logs",
+      "propertyOrder": 3
+    }
+  }
+}

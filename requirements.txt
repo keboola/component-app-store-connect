@@ -1,0 +1,10 @@
+keboola.component
+keboola.utils
+keboola.http-client
+freezegun
+mock
+pydantic
+PyJWT==2.10.1
+duckdb
+backoff
+cryptography
