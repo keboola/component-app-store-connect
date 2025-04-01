@@ -2,9 +2,8 @@ import logging
 from enum import Enum
 from typing import List, Literal
 
-
-from pydantic import BaseModel, Field, ValidationError, computed_field, field_validator
 from keboola.component.exceptions import UserException
+from pydantic import BaseModel, Field, ValidationError, computed_field, field_validator
 
 
 class LoadType(str, Enum):
@@ -16,8 +15,9 @@ class Source(BaseModel):
     app_ids: List[str]
     access_type: Literal["ONGOING", "ONE_TIME_SNAPSHOT"] = Field(default="ONGOING")
     report_categories: List[str] = Field(default=["APP_USAGE"])
-    report_names: List[str] = None
+    report_names: List[str] = Field(default_factory=list)
     granularity: Literal["DAILY", "WEEKLY", "MONTHLY"] = Field(default="DAILY")
+    date_from: str = Field(default="2000-01-01")
 
     @field_validator("app_ids")
     def split_id_string(cls, v):
