@@ -38,7 +38,7 @@
             "ONE_TIME_SNAPSHOT"
           ],
           "type": "string",
-          "title": "Granularity",
+          "title": "Access Type",
           "default": "ONGOING",
           "required": true,
           "propertyOrder": 2

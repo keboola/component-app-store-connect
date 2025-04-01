@@ -1,3 +1,4 @@
+import logging
 import time
 from typing import Literal, Optional
 
@@ -48,6 +49,8 @@ class AppStoreConnectClient(HttpClient):
         yield from self._paginate("apps")
 
     def create_report_request(self, app_id: str, access_type: Literal["ONGOING", "ONE_TIME_SNAPSHOT"]):
+        headers = {"Content-Type": "application/json"}
+
         payload = {
             "data": {
                 "type": "analyticsReportRequests",
@@ -56,9 +59,12 @@ class AppStoreConnectClient(HttpClient):
             }
         }
 
-        response = self.post("analyticsReportRequests", data=payload)
+        response = self.post_raw("analyticsReportRequests", headers=headers, json=payload)
 
-        if response.status_code != 200:
+        if response.status_code == 409:
+            logging.warning(f"Report request already exists for app_id: {app_id}.")
+
+        elif response.status_code != 200:
             raise UserException(f"Failed to create report request: {response.text}")
 
         return response
